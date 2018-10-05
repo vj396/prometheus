@@ -555,6 +555,7 @@ Outer:
 						Metric: md.Metric,
 						Type:   md.Type,
 						Help:   md.Help,
+						Unit:   md.Unit,
 					})
 				}
 				continue
@@ -565,6 +566,7 @@ Outer:
 					Target: t.Labels(),
 					Type:   md.Type,
 					Help:   md.Help,
+					Unit:   md.Unit,
 				})
 			}
 		}
@@ -580,6 +582,7 @@ type metricMetadata struct {
 	Metric string               `json:"metric,omitempty"`
 	Type   textparse.MetricType `json:"type"`
 	Help   string               `json:"help"`
+	Unit   string               `json:"unit"`
 }
 
 // AlertmanagerDiscovery has all the active Alertmanagers.
