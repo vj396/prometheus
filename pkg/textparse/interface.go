@@ -59,7 +59,7 @@ type Parser interface {
 func New(b []byte, contentType string) Parser {
 	mediaType, _, err := mime.ParseMediaType(contentType)
 	if err == nil && mediaType == "application/openmetrics-text" {
-		return NewOMParser(b)
+		return NewOpenMetricsParser(b)
 	}
 	return NewPromParser(b)
 }
