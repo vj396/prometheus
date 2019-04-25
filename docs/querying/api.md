@@ -18,11 +18,15 @@ and one of the following HTTP response codes:
 
 - `400 Bad Request` when parameters are missing or incorrect.
 - `422 Unprocessable Entity` when an expression can't be executed
-  ([RFC4918](http://tools.ietf.org/html/rfc4918#page-78)).
+  ([RFC4918](https://tools.ietf.org/html/rfc4918#page-78)).
 - `503 Service Unavailable` when queries time out or abort.
 
 Other non-`2xx` codes may be returned for errors occurring before the API
 endpoint is reached.
+
+An array of warnings may be returned if there are errors that do
+not inhibit the request execution. All of the data that was successfully
+collected will be returned in the data field.
 
 The JSON response envelope format is as follows:
 
@@ -34,7 +38,11 @@ The JSON response envelope format is as follows:
   // Only set if status is "error". The data field may still hold
   // additional data.
   "errorType": "<string>",
-  "error": "<string>"
+  "error": "<string>",
+
+  // Only if there were warnings while executing the request.
+  // There will still be data in the data field.
+  "warnings": ["<string>"]
 }
 ```
 
@@ -66,6 +74,7 @@ The following endpoint evaluates an instant query at a single point in time:
 
 ```
 GET /api/v1/query
+POST /api/v1/query
 ```
 
 URL query parameters:
@@ -76,6 +85,10 @@ URL query parameters:
    is capped by the value of the `-query.timeout` flag.
 
 The current server time is used if the `time` parameter is omitted.
+
+You can URL-encode these parameters directly in the request body by using the `POST` method and
+`Content-Type: application/x-www-form-urlencoded` header. This is useful when specifying a large
+query that may breach server-side URL character limits.
 
 The `data` section of the query result has the following format:
 
@@ -127,6 +140,7 @@ The following endpoint evaluates an expression query over a range of time:
 
 ```
 GET /api/v1/query_range
+POST /api/v1/query_range
 ```
 
 URL query parameters:
@@ -137,6 +151,10 @@ URL query parameters:
 - `step=<duration | float>`: Query resolution step width in `duration` format or float number of seconds.
 - `timeout=<duration>`: Evaluation timeout. Optional. Defaults to and
    is capped by the value of the `-query.timeout` flag.
+
+You can URL-encode these parameters directly in the request body by using the `POST` method and
+`Content-Type: application/x-www-form-urlencoded` header. This is useful when specifying a large
+query that may breach server-side URL character limits.
 
 The `data` section of the query result has the following format:
 
@@ -197,6 +215,7 @@ The following endpoint returns the list of time series that match a certain labe
 
 ```
 GET /api/v1/series
+POST /api/v1/series
 ```
 
 URL query parameters:
@@ -206,6 +225,10 @@ URL query parameters:
 - `start=<rfc3339 | unix_timestamp>`: Start timestamp.
 - `end=<rfc3339 | unix_timestamp>`: End timestamp.
 
+You can URL-encode these parameters directly in the request body by using the `POST` method and
+`Content-Type: application/x-www-form-urlencoded` header. This is useful when specifying a large
+or dynamic number of series selectors that may breach server-side URL character limits.
+
 The `data` section of the query result consists of a list of objects that
 contain the label name/value pairs which identify each series.
 
@@ -213,7 +236,7 @@ The following example returns all series that match either of the selectors
 `up` or `process_start_time_seconds{job="prometheus"}`:
 
 ```json
-$ curl -g 'http://localhost:9090/api/v1/series?match[]=up&match[]=process_start_time_seconds{job="prometheus"}'
+$ curl -g 'http://localhost:9090/api/v1/series?' --data-urlencode='match[]=up' --data-urlencode='match[]=process_start_time_seconds{job="prometheus"}'
 {
    "status" : "success",
    "data" : [
@@ -236,6 +259,49 @@ $ curl -g 'http://localhost:9090/api/v1/series?match[]=up&match[]=process_start_
 }
 ```
 
+### Getting label names
+
+The following endpoint returns a list of label names:
+
+```
+GET /api/v1/labels
+POST /api/v1/labels
+```
+
+The `data` section of the JSON response is a list of string label names.
+
+Here is an example.
+
+```json
+$ curl 'localhost:9090/api/v1/labels'
+{
+    "status": "success",
+    "data": [
+        "__name__",
+        "call",
+        "code",
+        "config",
+        "dialer_name",
+        "endpoint",
+        "event",
+        "goversion",
+        "handler",
+        "instance",
+        "interval",
+        "job",
+        "le",
+        "listener_name",
+        "name",
+        "quantile",
+        "reason",
+        "role",
+        "scrape_job",
+        "slice",
+        "version"
+    ]
+}
+```
+
 ### Querying label values
 
 The following endpoint returns a list of label values for a provided label name:
@@ -244,7 +310,7 @@ The following endpoint returns a list of label values for a provided label name:
 GET /api/v1/label/<label_name>/values
 ```
 
-The `data` section of the JSON response is a list of string label names.
+The `data` section of the JSON response is a list of string label values.
 
 This example queries for all label values for the `job` label:
 
@@ -499,7 +565,8 @@ curl -G http://localhost:9091/api/v1/targets/metadata \
         "job": "prometheus"
       },
       "type": "gauge",
-      "help": "Number of goroutines that currently exist."
+      "help": "Number of goroutines that currently exist.",
+      "unit": ""
     },
     {
       "target": {
@@ -507,7 +574,8 @@ curl -G http://localhost:9091/api/v1/targets/metadata \
         "job": "prometheus"
       },
       "type": "gauge",
-      "help": "Number of goroutines that currently exist."
+      "help": "Number of goroutines that currently exist.",
+      "unit": ""
     }
   ]
 }
@@ -530,7 +598,8 @@ curl -G http://localhost:9091/api/v1/targets/metadata \
       },
       "metric": "prometheus_treecache_zookeeper_failures_total",
       "type": "counter",
-      "help": "The total number of ZooKeeper failures."
+      "help": "The total number of ZooKeeper failures.",
+      "unit": ""
     },
     {
       "target": {
@@ -539,7 +608,8 @@ curl -G http://localhost:9091/api/v1/targets/metadata \
       },
       "metric": "prometheus_tsdb_reloads_total",
       "type": "counter",
-      "help": "Number of times the database reloaded block data from disk."
+      "help": "Number of times the database reloaded block data from disk.",
+      "unit": ""
     },
     // ...
   ]
@@ -639,6 +709,7 @@ It will optionally skip snapshotting data that is only present in the head block
 
 ```
 POST /api/v1/admin/tsdb/snapshot?skip_head=<bool>
+PUT /api/v1/admin/tsdb/snapshot?skip_head=<bool>
 ```
 
 ```json
@@ -650,10 +721,9 @@ $ curl -XPOST http://localhost:9090/api/v1/admin/tsdb/snapshot
   }
 }
 ```
-
 The snapshot now exists at `<data-dir>/snapshots/20171210T211224Z-2be650b6d019eb54`
 
-*New in v2.1*
+*New in v2.1 and supports PUT from v2.9*
 
 ### Delete Series
 DeleteSeries deletes data for a selection of series in a time range. The actual data still exists on disk and is cleaned up in future compactions or can be explicitly cleaned up by hitting the Clean Tombstones endpoint.
@@ -662,6 +732,7 @@ If successful, a `204` is returned.
 
 ```
 POST /api/v1/admin/tsdb/delete_series
+PUT /api/v1/admin/tsdb/delete_series
 ```
 
 URL query parameters:
@@ -678,7 +749,7 @@ Example:
 $ curl -X POST \
   -g 'http://localhost:9090/api/v1/admin/tsdb/delete_series?match[]=up&match[]=process_start_time_seconds{job="prometheus"}'
 ```
-*New in v2.1*
+*New in v2.1 and supports PUT from v2.9*
 
 ### Clean Tombstones
 CleanTombstones removes the deleted data from disk and cleans up the existing tombstones. This can be used after deleting series to free up space.
@@ -687,6 +758,7 @@ If successful, a `204` is returned.
 
 ```
 POST /api/v1/admin/tsdb/clean_tombstones
+PUT /api/v1/admin/tsdb/clean_tombstones
 ```
 
 This takes no parameters or body.
@@ -695,4 +767,4 @@ This takes no parameters or body.
 $ curl -XPOST http://localhost:9090/api/v1/admin/tsdb/clean_tombstones
 ```
 
-*New in v2.1*
+*New in v2.1 and supports PUT from v2.9*

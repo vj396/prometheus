@@ -494,7 +494,14 @@ func TestForStateRestore(t *testing.T) {
 func TestStaleness(t *testing.T) {
 	storage := testutil.NewStorage(t)
 	defer storage.Close()
-	engine := promql.NewEngine(nil, nil, 10, 10*time.Second)
+	engineOpts := promql.EngineOpts{
+		Logger:        nil,
+		Reg:           nil,
+		MaxConcurrent: 10,
+		MaxSamples:    10,
+		Timeout:       10 * time.Second,
+	}
+	engine := promql.NewEngine(engineOpts)
 	opts := &ManagerOptions{
 		QueryFunc:  EngineQueryFunc(engine, storage),
 		Appendable: storage,
@@ -531,7 +538,7 @@ func TestStaleness(t *testing.T) {
 	matcher, err := labels.NewMatcher(labels.MatchEqual, model.MetricNameLabel, "a_plus_one")
 	testutil.Ok(t, err)
 
-	set, err := querier.Select(nil, matcher)
+	set, _, err := querier.Select(nil, matcher)
 	testutil.Ok(t, err)
 
 	samples, err := readSeriesSet(set)
@@ -545,13 +552,13 @@ func TestStaleness(t *testing.T) {
 	metricSample[2].V = 42 // reflect.DeepEqual cannot handle NaN.
 
 	want := map[string][]promql.Point{
-		metric: []promql.Point{{0, 2}, {1000, 3}, {2000, 42}},
+		metric: {{0, 2}, {1000, 3}, {2000, 42}},
 	}
 
 	testutil.Equals(t, want, samples)
 }
 
-// Convert a SeriesSet into a form useable with reflect.DeepEqual.
+// Convert a SeriesSet into a form usable with reflect.DeepEqual.
 func readSeriesSet(ss storage.SeriesSet) (map[string][]promql.Point, error) {
 	result := map[string][]promql.Point{}
 
@@ -577,38 +584,44 @@ func TestCopyState(t *testing.T) {
 			NewAlertingRule("alert", nil, 0, nil, nil, true, nil),
 			NewRecordingRule("rule1", nil, nil),
 			NewRecordingRule("rule2", nil, nil),
-			NewRecordingRule("rule3", nil, nil),
-			NewRecordingRule("rule3", nil, nil),
+			NewRecordingRule("rule3", nil, labels.Labels{{Name: "l1", Value: "v1"}}),
+			NewRecordingRule("rule3", nil, labels.Labels{{Name: "l1", Value: "v2"}}),
+			NewAlertingRule("alert2", nil, 0, labels.Labels{{Name: "l2", Value: "v1"}}, nil, true, nil),
 		},
 		seriesInPreviousEval: []map[string]labels.Labels{
-			map[string]labels.Labels{"a": nil},
-			map[string]labels.Labels{"r1": nil},
-			map[string]labels.Labels{"r2": nil},
-			map[string]labels.Labels{"r3a": nil},
-			map[string]labels.Labels{"r3b": nil},
+			{"a": nil},
+			{"r1": nil},
+			{"r2": nil},
+			{"r3a": labels.Labels{{Name: "l1", Value: "v1"}}},
+			{"r3b": labels.Labels{{Name: "l1", Value: "v2"}}},
+			{"a2": labels.Labels{{Name: "l2", Value: "v1"}}},
 		},
 		evaluationDuration: time.Second,
 	}
 	oldGroup.rules[0].(*AlertingRule).active[42] = nil
 	newGroup := &Group{
 		rules: []Rule{
-			NewRecordingRule("rule3", nil, nil),
-			NewRecordingRule("rule3", nil, nil),
-			NewRecordingRule("rule3", nil, nil),
+			NewRecordingRule("rule3", nil, labels.Labels{{Name: "l1", Value: "v0"}}),
+			NewRecordingRule("rule3", nil, labels.Labels{{Name: "l1", Value: "v1"}}),
+			NewRecordingRule("rule3", nil, labels.Labels{{Name: "l1", Value: "v2"}}),
 			NewAlertingRule("alert", nil, 0, nil, nil, true, nil),
 			NewRecordingRule("rule1", nil, nil),
+			NewAlertingRule("alert2", nil, 0, labels.Labels{{Name: "l2", Value: "v0"}}, nil, true, nil),
+			NewAlertingRule("alert2", nil, 0, labels.Labels{{Name: "l2", Value: "v1"}}, nil, true, nil),
 			NewRecordingRule("rule4", nil, nil),
 		},
-		seriesInPreviousEval: make([]map[string]labels.Labels, 6),
+		seriesInPreviousEval: make([]map[string]labels.Labels, 8),
 	}
 	newGroup.CopyState(oldGroup)
 
 	want := []map[string]labels.Labels{
-		map[string]labels.Labels{"r3a": nil},
-		map[string]labels.Labels{"r3b": nil},
 		nil,
-		map[string]labels.Labels{"a": nil},
-		map[string]labels.Labels{"r1": nil},
+		{"r3a": labels.Labels{{Name: "l1", Value: "v1"}}},
+		{"r3b": labels.Labels{{Name: "l1", Value: "v2"}}},
+		{"a": nil},
+		{"r1": nil},
+		nil,
+		{"a2": labels.Labels{{Name: "l2", Value: "v1"}}},
 		nil,
 	}
 	testutil.Equals(t, want, newGroup.seriesInPreviousEval)
@@ -623,7 +636,14 @@ func TestUpdate(t *testing.T) {
 	}
 	storage := testutil.NewStorage(t)
 	defer storage.Close()
-	engine := promql.NewEngine(nil, nil, 10, 10*time.Second)
+	opts := promql.EngineOpts{
+		Logger:        nil,
+		Reg:           nil,
+		MaxConcurrent: 10,
+		MaxSamples:    10,
+		Timeout:       10 * time.Second,
+	}
+	engine := promql.NewEngine(opts)
 	ruleManager := NewManager(&ManagerOptions{
 		Appendable: storage,
 		TSDB:       storage,
@@ -655,7 +675,14 @@ func TestUpdate(t *testing.T) {
 func TestNotify(t *testing.T) {
 	storage := testutil.NewStorage(t)
 	defer storage.Close()
-	engine := promql.NewEngine(nil, nil, 10, 10*time.Second)
+	engineOpts := promql.EngineOpts{
+		Logger:        nil,
+		Reg:           nil,
+		MaxConcurrent: 10,
+		MaxSamples:    10,
+		Timeout:       10 * time.Second,
+	}
+	engine := promql.NewEngine(engineOpts)
 	var lastNotified []*Alert
 	notifyFunc := func(ctx context.Context, expr string, alerts ...*Alert) {
 		lastNotified = alerts

@@ -38,6 +38,16 @@ To select all HTTP status codes except 4xx ones, you could run:
 
     http_requests_total{status!~"4.."}
 
+## Subquery
+
+Return the 5-minute rate of the `http_requests_total` metric for the past 30 minutes, with a resolution of 1 minute.
+
+    rate(http_requests_total[5m])[30m:1m]
+
+This is an example of a nested subquery. The subquery for the `deriv` function uses the default resolution. Note that using subqueries unnecessarily is unwise.
+
+    max_over_time(deriv(rate(distance_covered_total[5s])[30s:5s])[10m:])
+
 ## Using functions, operators, etc.
 
 Return the per-second rate for all time series with the `http_requests_total`
