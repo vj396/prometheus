@@ -279,7 +279,7 @@ func (d *Discovery) refresh() (tg *targetgroup.Group, err error) {
 	}()
 	tg = &targetgroup.Group{}
 	var client *collins.Client
-	if d.cfg.ClientFile != "nil" {
+	if d.cfg.ClientFile != "" {
 		client, err = collins.NewClientFromFiles(d.cfg.ClientFile)
 		if err != nil {
 			return tg, fmt.Errorf("could not create collins client: %s", err)
