@@ -83,6 +83,7 @@ type SDConfig struct {
 	CollinsURL         string              `yaml:"collins_url,omitempty"`
 	ClientUser         string              `yaml:"collins_user,omitempty"`
 	ClientSecret       config_util.Secret  `yaml:"collins_pass,omitempty"`
+	ClientFile         string              `yaml:"collins_client_config_file,omitempty"`
 	AttributeDiscovery AttributeDiscovery  `yaml:"attributes,omitempty"`
 	Query              string              `yaml:"query"`
 	RefreshInterval    model.Duration      `yaml:"refresh_interval,omitempty"`
@@ -277,9 +278,17 @@ func (d *Discovery) refresh() (tg *targetgroup.Group, err error) {
 		}
 	}()
 	tg = &targetgroup.Group{}
-	client, err := collins.NewClient(d.cfg.ClientUser, string(d.cfg.ClientSecret), d.cfg.CollinsURL)
-	if err != nil {
-		return tg, fmt.Errorf("could not create collins client: %s", err)
+	var client *collins.Client
+	if d.cfg.ClientFile != "nil" {
+		client, err = collins.NewClientFromFiles(d.cfg.ClientFile)
+		if err != nil {
+			return tg, fmt.Errorf("could not create collins client: %s", err)
+		}
+	} else {
+		client, err = collins.NewClient(d.cfg.ClientUser, string(d.cfg.ClientSecret), d.cfg.CollinsURL)
+		if err != nil {
+			return tg, fmt.Errorf("could not create collins client: %s", err)
+		}
 	}
 
 	query := collins.AssetFindOpts{

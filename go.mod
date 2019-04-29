@@ -104,6 +104,7 @@ require (
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/fsnotify/fsnotify.v1 v1.3.1
 	gopkg.in/inf.v0 v0.9.1 // indirect
+	gopkg.in/tumblr/go-collins.v0 v0.0.0-20190321015752-7d2dfd575995
 	gopkg.in/yaml.v2 v2.2.2
 	k8s.io/api v0.0.0-20181213150558-05914d821849
 	k8s.io/apimachinery v0.0.0-20181127025237-2b1284ed4c93
