@@ -496,6 +496,7 @@ var expectedConf = &Config{
 
 			ScrapeInterval: model.Duration(15 * time.Second),
 			ScrapeTimeout:  DefaultGlobalConfig.ScrapeTimeout,
+			HonorTimestamps: true,
 
 			MetricsPath: DefaultScrapeConfig.MetricsPath,
 			Scheme:      DefaultScrapeConfig.Scheme,
